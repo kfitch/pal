@@ -25,27 +25,6 @@ void p_sqrt_f32(const float *a, float *c, int n)
 
     int i;
     for (i = 0; i < n; i++) {
-        const float *pa = (a+i);
-        float *pc = (c+i);
-        float x;
-        union {
-            float f;
-            int32_t i;
-        } j;
-        float xhalf = 0.5f*(*pa);
-
-        j.f = *pa;
-        j.i = 0x5f375a86 - (j.i >> 1);
-        x = j.f;
-
-        // Newton steps, repeating this increases accuracy
-        x = x*(1.5f - xhalf*x*x);
-        x = x*(1.5f - xhalf*x*x);
-        x = x*(1.5f - xhalf*x*x);
-
-        // x contains the inverse sqrt
-
-        // Multiply the inverse sqrt by the input to get the sqrt
-        *pc = *pa * x;
+        c[i] = sqrtf(a[i]);
     }
 }
