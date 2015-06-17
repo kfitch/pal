@@ -19,22 +19,25 @@ static const size_t max_output = 3;
  * this prototype is posix specific
  */
 
-#include <sys/times.h>
+#include <sys/time.h>
+#include <sys/resource.h>
 
-typedef clock_t platform_clock_t;
+typedef struct timeval platform_clock_t;
 
 static platform_clock_t platform_clock(void)
 {
-	struct tms tmsbuffer;
+	struct rusage buffer;
 
-	(void)times(&tmsbuffer);
-	return tmsbuffer.tms_utime;
+	(void)getrusage(RUSAGE_SELF, &buffer);
+	return buffer.ru_utime;
 }
 
 static void
 platform_print_duration(platform_clock_t start, platform_clock_t end)
 {
-	printf("%ju", (uintmax_t)(end - start));
+	uint64_t dt = (end.tv_sec-start.tv_sec)*1000000;
+	dt += end.tv_usec - start.tv_usec;
+	printf("%09"PRIu64"us", dt);
 }
 
  /* end of platform specific section */
@@ -49,7 +52,12 @@ static void item_done(struct item_data*,
 static void setup_memory(struct p_benchmark_raw_memory*, char **raw, size_t);
 
 static char dummy_memarea[1024*1024*32];
-int p_benchmark_dummy_func(char *, size_t);
+
+int p_benchmark_dummy_func(char *a, size_t b) {
+    (void)a;
+    (void)b;
+    return 0;
+}
 
 int main(void)
 {
@@ -59,8 +67,6 @@ int main(void)
 	char *raw_mem = NULL;
 	spec.current_size = default_initial_size;
 
-	spec.p = 1;
-	spec.team = NULL;
 	setup_memory(&spec.mem, &raw_mem, spec.current_size);
 	for (const struct p_benchmark_item* item = benchmark_items;
 		item->name != NULL;
