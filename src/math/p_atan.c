@@ -21,6 +21,6 @@ void p_atan_f32(const float *a, float *c, int n)
 
     int i;
     for (i = 0; i < n; i++) {
-        *(c + i) = atan(*(a + i));
+        *(c + i) = atanf(*(a + i));
     }
 }

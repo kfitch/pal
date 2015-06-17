@@ -3,7 +3,6 @@
 /**
  *
  * Compute the sine of the vector 'a'. Angles are specified in radians.
- * The radian number must be in the range 0 to 2pi,
  *
  * @param a     Pointer to input vector
  *
@@ -15,30 +14,11 @@
  *
  */
 
-#define SIN_ITERATIONS 5
-
 void p_sin_f32(const float *a, float *c, int n)
 {
-    int i;    
+    int i;
     for (i = 0; i < n; i++) {
-      const float *pa = (a+i);
-      float *pc = (c+i);
-      float val = 1.0f;
-      int k;
-      float theta = *pa;
-      //float theta = M_NORMALIZE_RADIANS(*pa);
-
-      //for(k=SIN_ITERATIONS; k>=0; --k)
-        //val = 1 - theta * ((theta / (2*k+2))/(2*k+3))*val;
-
-      val = 1.0f - theta * theta * 0.083333333f * 0.076923077f * val;
-      val = 1.0f - theta * theta * 0.1f * 0.090909091f * val;
-      val = 1.0f - theta * theta * 0.125f * 0.111111111f * val;
-      val = 1.0f - theta * theta * 0.166666667f * 0.142857143f * val;
-      val = 1.0f - theta * theta * 0.25f * 0.2f * val;
-      val = 1.0f - theta * theta * 0.5f * 0.333333333f * val;
-
-      *pc = theta * val;
+        *(c + i) = sinf(*(a + i));
     }
 
 #if 0
