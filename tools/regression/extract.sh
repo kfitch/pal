@@ -1,18 +1,20 @@
 #!/bin/bash
 set -e
 
-DB="pal.db"
+PAL_DB=${PAL_DB:-pal.db}
 
 usage() {
-    echo Usage: $0 PLATFORM >&2
+    echo Usage: $0 PLATFORM [RANGE] [CFLAGS] >&2
     echo >&2
     echo Create HTML report for PLATFORM >&2
     echo Example: $0 x86_64 >&2
     exit 1
 }
 
-[ $# == 1 ] || usage
+[ $# = 1 -o $# = 2 -o $# = 3 ] || usage
 platform=$1
+range=$2
+cflags=$3
 
 if ! which sqlite3 >/dev/null; then
     echo This tool needs sqlite3 >&2
@@ -24,14 +26,14 @@ if ! which gawk >/dev/null; then
     exit 1
 fi
 
-if ! [ -e ${DB} ]; then
-    echo Database \'${DB}\' not found >&2
+if ! [ -e ${PAL_DB} ]; then
+    echo Database \'${PAL_DB}\' not found >&2
     exit 1
 fi
 
 head=$(git rev-parse HEAD)
 files_qry="SELECT DISTINCT file FROM report WHERE commit_sha=\"${head}\" ORDER BY file ASC;"
-files=$(echo "$files_qry" | sqlite3 ${DB});
+files=$(echo "$files_qry" | sqlite3 ${PAL_DB});
 
 cat << EOF
 <html>
@@ -86,8 +88,18 @@ for f in $files; do
     echo "<h2><a href=\"https://github.com/parallella/pal/tree/master/${f_src}\">${f_src}</a></h2>"
     echo "<table>"
     echo "<tr><th>Symbol</th><th>Date (GMT+0)</th><th>Commit</th><th>Size</th></tr>"
-    qry="SELECT datetime(commit_date, 'unixepoch'), commit_sha, symbol, size FROM report WHERE file='${f}' AND platform='${platform}' GROUP BY symbol, commit_date;"
-    (echo .mode csv && echo $qry) | sqlite3 ${DB} | gawk -F"," '
+    if ! [ "x$range" = "x" ]; then
+        first_sha=$(git rev-list $range | tail -n1)
+        if [ "x$first_sha" = "x" ]; then
+            echo ERROR: first_sha empty. Range: $range >&2
+            exit 1
+        fi
+        # Do it through git so we know commit is there
+        min_date=$(git show --format="%ct" $first_sha | head -n1)
+        min_date_str="commit_date >= ${min_date} AND "
+    fi
+    qry="SELECT datetime(commit_date, 'unixepoch'), commit_sha, symbol, size FROM report WHERE ${min_date_str} file='${f}' AND platform='${platform}' AND cflags='${cflags}' GROUP BY symbol, commit_date;"
+    (echo .mode csv && echo $qry) | sqlite3 ${PAL_DB} | gawk -F"," '
     BEGIN {
         prev_size=(-1);
         prev_symbol="";
@@ -110,8 +122,19 @@ for f in $files; do
         # If commit is not in current branch continue.
         # ??? TODO: Not always what we want to do
         cmd=sprintf("git branch --contains %s | tr -d \" *\" | grep -q ^%s$", sha, current_branch);
-        if (0 != system(cmd))
+        if (0 != system(cmd)) {
             next;
+        }
+
+        # If commit is not in range continue.
+        # TODO: For some reason this gets painfully slow as number of commits in range
+        # grows. Instead create a temporary table of all commits in range in SQLite
+        # and do a JOIN.
+        if (range != "") {
+            cmd=sprintf("git rev-list %s | grep -q ^%s$", range, sha);
+            if (0 != system(cmd))
+                next;
+        }
 
         # Highlight if increased or decreased
         if (prev_size == (-1) || prev_symbol != symbol || prev_size == size)
@@ -147,7 +170,7 @@ for f in $files; do
 
         prev_size=size;
         prev_symbol=symbol;
-    } '
+    } ' range="$range"
     echo "</table>"
 done
 

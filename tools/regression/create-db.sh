@@ -1,7 +1,7 @@
 #!/bin/bash
-DB=pal.db
+PAL_DB=${PAL_DB:-pal.db}
 
-cat << EOF | sqlite3 $DB
+cat << EOF | sqlite3 $PAL_DB
 CREATE TABLE IF NOT EXISTS report (
     commit_date INTEGER, -- UNIX epoch
     commit_sha TEXT,
@@ -11,6 +11,6 @@ CREATE TABLE IF NOT EXISTS report (
     cflags TEXT,
     type TEXT,
     size INTEGER,
-    PRIMARY KEY (commit_date, commit_sha, platform, file, symbol)
+    PRIMARY KEY (commit_date, commit_sha, platform, file, symbol, cflags)
 );
 EOF
